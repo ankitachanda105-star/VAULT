@@ -1,0 +1,41 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.env
+venv/
+ENV/
+env/
+.pytest_cache/
+
+# Databases
+backend/*.db
+backend/*.sqlite3
+
+# Node storage simulation directories
+backend/storage/node1/*
+!backend/storage/node1/.gitkeep
+backend/storage/node2/*
+!backend/storage/node2/.gitkeep
+backend/storage/node3/*
+!backend/storage/node3/.gitkeep
+backend/storage/node4/*
+!backend/storage/node4/.gitkeep
+backend/storage/node5/*
+!backend/storage/node5/.gitkeep
+
+# Frontend & Node
+frontend/node_modules/
+frontend/dist/
+frontend/.vite/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# OS / Editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
