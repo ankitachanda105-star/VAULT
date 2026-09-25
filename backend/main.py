@@ -87,12 +87,31 @@ app.include_router(corruption.router)
 app.include_router(rebalance.router)
 
 
-@app.get("/")
-def root():
-    return {
-        "system": "VAULT",
-        "phase": 6,
-        "description": "Fault-tolerant distributed object storage - Phase 6 corruption detection & repair",
-        "nodes": 5,
-        "status": "online",
-    }
+import os
+from pathlib import Path
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
+
+# Check for production frontend build
+frontend_dist = Path(__file__).resolve().parent.parent / "frontend" / "dist"
+if frontend_dist.is_dir():
+    app.mount("/assets", StaticFiles(directory=str(frontend_dist / "assets")), name="assets")
+
+    @app.get("/{full_path:path}")
+    async def serve_frontend(full_path: str):
+        if full_path.startswith(("objects", "nodes", "health", "ws", "repair", "rebalance", "docs", "openapi.json")):
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Not Found")
+        target_file = frontend_dist / full_path
+        if target_file.is_file():
+            return FileResponse(str(target_file))
+        return FileResponse(str(frontend_dist / "index.html"))
+else:
+    @app.get("/")
+    def root():
+        return {
+            "system": "VAULT",
+            "phase": 8,
+            "description": "Fault-tolerant distributed object storage",
+            "nodes": 5,
+            "status": "online",
+        }

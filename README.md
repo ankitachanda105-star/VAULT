@@ -166,3 +166,43 @@ npm.cmd run dev
    - The node transitions to purple with a rotating dashed outline and status `PARTITION`.
    - Health heartbeats continue to register live timestamps, but download requests transparently failover to online peers.
    - Click **Heal** to clear the partition and return the node to `ONLINE`.
+
+
+---
+
+## Deployment Guide
+
+VAULT features a unified single-service architecture: FastAPI serves the compiled React SPA from \/\, static assets from \/assets\, all REST endpoints from \/objects\, \/nodes\, etc., and the WebSocket real-time stream at \/ws/dashboard\ — all on a single port.
+
+### Option 1: Free Cloud Deployment on Render.com (Recommended)
+
+1. Connect your GitHub repository \nkitachanda105-star/VAULT\ on [Render](https://dashboard.render.com).
+2. Click **New +** -> **Web Service**.
+3. Configure the service:
+   - **Environment**: \Python   - **Build Command**: \pip install -r requirements.txt   - **Start Command**: \cd backend && uvicorn main:app --host 0.0.0.0 --port \
+4. Click **Deploy Web Service**.
+Render provisions an HTTPS/WSS URL (e.g., \https://vault-storage.onrender.com\) running both frontend and backend seamlessly.
+
+### Option 2: Docker Container Deployment
+
+Run the complete multi-stage container locally or on any container platform (Railway, Fly.io, DigitalOcean, AWS ECS):
+
+\\ash
+# Build and run with Docker Compose
+docker compose up --build -d
+
+# Open in browser:
+http://localhost:8000
+\
+### Option 3: Local Production Mode
+
+Run both the React frontend and FastAPI backend unified on a single port without Docker:
+
+\\ash
+# 1. Install Python dependencies
+pip install -r requirements.txt
+
+# 2. Start the unified production server
+cd backend
+uvicorn main:app --host 0.0.0.0 --port 8000
+\Open \http://localhost:8000\ to interact with the full dashboard and Swagger documentation at \http://localhost:8000/docs\.

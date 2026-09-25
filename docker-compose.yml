@@ -1,0 +1,17 @@
+version: '3.8'
+
+services:
+  vault:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      - PORT=8000
+    volumes:
+      - vault_data:/app/backend/storage
+    restart: unless-stopped
+
+volumes:
+  vault_data:

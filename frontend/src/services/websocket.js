@@ -7,8 +7,17 @@ class WebSocketService {
     this.isConnected = false;
   }
 
+  getWsUrl() {
+    if (import.meta.env.VITE_WS_URL) return import.meta.env.VITE_WS_URL;
+    if (typeof window !== 'undefined' && window.location.port !== '5173') {
+      const proto = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+      return `${proto}//${window.location.host}/ws/dashboard`;
+    }
+    return 'ws://127.0.0.1:8000/ws/dashboard';
+  }
+
   connect() {
-    const wsUrl = 'ws://127.0.0.1:8000/ws/dashboard';
+    const wsUrl = this.getWsUrl();
     try {
       this.ws = new WebSocket(wsUrl);
 
