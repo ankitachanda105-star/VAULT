@@ -231,7 +231,7 @@ export default function App() {
 
     setActiveParticles((prev) => [...prev, transferParticle]);
     setTimeout(() => {
-      setActiveParticles((prev) => prev.filter((p) => p.id !== transferParticle.id));
+      setActiveParticles((prev) => prev.filter((p) => !p.id !== transferParticle.id));
     }, 1700);
   };
 
@@ -374,7 +374,7 @@ export default function App() {
   };
 
   return (
-    <div className="relative flex flex-col h-screen w-screen bg-[var(--bg-0)] text-slate-100 overflow-hidden font-sans select-none">
+    <div className="relative flex flex-col h-screen w-screen bg-[#07090d] text-slate-100 overflow-hidden font-sans select-none">
       {/* Background Ambient Layers (Fixed position, pointer-events none) */}
       <div className="ambient-background">
         <div className="ambient-glow-cyan" />
@@ -391,11 +391,12 @@ export default function App() {
         setIsPanelOpen={setIsPanelOpen}
       />
 
-      {/* Main Content Area */}
-      <div className="flex-1 flex overflow-hidden z-10">
-        {/* Left: Living Graph Centerpiece + Bottom Action Controls */}
-        <div className="flex-1 flex flex-col min-w-0 h-full border-r border-[var(--line)]">
-          <div className="flex-1 relative min-h-0">
+      {/* Main Content Area - Floating Glass Cockpit */}
+      <main className="flex-1 flex overflow-hidden z-10 p-3.5 gap-3.5">
+        {/* Left: The Living Graph Centerpiece + Bottom Action Controls */}
+        <div className="flex-1 flex flex-col gap-3 min-w-0 h-full">
+          {/* 1. Graph Centerpiece Panel */}
+          <div className="flex-1 glass-panel relative min-h-0 overflow-hidden flex flex-col shadow-2xl">
             <VaultGraph
               nodes={nodes}
               objects={objects}
@@ -405,8 +406,8 @@ export default function App() {
             />
           </div>
 
-          {/* Bottom Control Bar & Ingestion Zone */}
-          <div className="p-4 bg-[#0c1118]/70 backdrop-blur-md border-t border-[var(--line)] space-y-3 z-20">
+          {/* 2 & 3. Control Bar & Ingestion Zone */}
+          <div className="flex flex-col gap-3 shrink-0">
             <ControlBar
               nodes={nodes}
               objects={objects}
@@ -425,8 +426,8 @@ export default function App() {
 
         {/* Right Collapsible Panel: Activity Feed + Objects Catalog */}
         {isPanelOpen && (
-          <aside className="w-[490px] xl:w-[560px] flex flex-col h-full bg-[#07090d]/60 backdrop-blur-sm p-4 gap-4 overflow-hidden shrink-0">
-            <div className="h-[46%] min-h-[220px]">
+          <aside className="w-[490px] xl:w-[550px] flex flex-col gap-3 h-full shrink-0 overflow-hidden">
+            <div className="h-[45%] min-h-[220px]">
               <ActivityFeed
                 events={events}
                 onClear={() => setEvents([])}
@@ -444,7 +445,7 @@ export default function App() {
             </div>
           </aside>
         )}
-      </div>
+      </main>
 
       {/* Toast Notification Component (Bottom-Center, Slide-Up Glass Panel) */}
       <AnimatePresence>

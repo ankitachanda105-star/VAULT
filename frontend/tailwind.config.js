@@ -7,19 +7,18 @@ export default {
   theme: {
     extend: {
       colors: {
-        vault: {
-          bg: "#0a0e14",
-          panel: "#0f1620",
-          card: "#151e2b",
-          border: "#1e293b",
-          online: "#10b981",
-          repair: "#f59e0b",
-          failed: "#ef4444",
-          accent: "#38bdf8",
-        },
+        'bg-0': '#07090d',
+        'bg-1': '#0c1118',
+        'bg-2': '#131a24',
+        'line': 'rgba(148, 163, 184, 0.08)',
+        'accent': '#22d3ee',
+        'accent-2': '#a78bfa',
+        'ok': '#10b981',
+        'warn': '#f59e0b',
+        'bad': '#ef4444',
       },
       fontFamily: {
-        mono: ['JetBrains Mono', 'IBM Plex Mono', 'monospace'],
+        mono: ['JetBrains Mono', 'monospace'],
         sans: ['Inter', 'system-ui', 'sans-serif'],
       },
     },
