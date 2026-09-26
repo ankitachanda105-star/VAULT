@@ -1,15 +1,15 @@
 import React from 'react';
-import { Database, HardDrive, ShieldCheck, Activity, Wifi, WifiOff, PanelRightClose, PanelRightOpen } from 'lucide-react';
+import { Database, HardDrive, ShieldCheck, Activity, Wifi, WifiOff, PanelRightClose, PanelRightOpen, Server } from 'lucide-react';
 import { formatBytes } from '../utils/formatters';
+import { CircularProgress } from './CircularProgress';
 
 export function TopBar({ nodes, summary, wsConnected, isPanelOpen, setIsPanelOpen }) {
   const totalUsed = nodes.reduce((acc, n) => acc + (n.used_storage || 0), 0);
   const totalStorage = nodes.reduce((acc, n) => acc + (n.total_storage || 10737418240), 0);
   const storagePct = totalStorage > 0 ? Math.min(100, Math.round((totalUsed / totalStorage) * 100)) : 0;
 
-  // Calculate health percentage: online nodes / total nodes + healthy objects
   const totalNodes = summary.total_nodes || 5;
-  const onlineNodes = summary.online ?? 5;
+  const onlineNodes = summary.online ?? nodes.filter(n => n.status === 'ONLINE').length;
   const totalObjects = summary.total_objects || 0;
   const healthyObjects = summary.healthy_objects || 0;
   
@@ -17,46 +17,66 @@ export function TopBar({ nodes, summary, wsConnected, isPanelOpen, setIsPanelOpe
     ? Math.round((healthyObjects / totalObjects) * 100)
     : (onlineNodes === totalNodes ? 100 : Math.round((onlineNodes / totalNodes) * 100));
 
+  const healthColor = healthPct >= 100 ? '#10b981' : healthPct >= 60 ? '#f59e0b' : '#ef4444';
+
   return (
-    <header className="h-16 border-b border-slate-800/80 bg-[#0a0e14]/90 backdrop-blur-md px-6 flex items-center justify-between select-none z-30">
+    <header className="h-16 border-b border-[var(--line)] bg-[#0c1118]/85 backdrop-blur-md px-6 flex items-center justify-between select-none z-30 shrink-0">
       {/* Brand */}
       <div className="flex items-center gap-3">
-        <div className="relative flex items-center justify-center w-9 h-9 rounded-lg bg-emerald-950/60 border border-emerald-500/30 text-emerald-400 font-bold shadow-[0_0_15px_rgba(16,185,129,0.15)]">
-          <Database className="w-5 h-5 text-emerald-400" />
+        <div className="relative flex items-center justify-center w-9 h-9 rounded-xl bg-cyan-950/40 border border-cyan-500/30 text-cyan-400 font-bold shadow-[0_0_20px_rgba(34,211,238,0.2)]">
+          <Database className="w-5 h-5 text-cyan-400" />
           <span className="absolute -top-1 -right-1 flex h-2.5 w-2.5">
-            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-            <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
+            <span className="w-2.5 h-2.5 rounded-full bg-cyan-400 pulse-dot-cyan"></span>
           </span>
         </div>
         <div>
           <div className="flex items-center gap-2">
-            <h1 className="font-semibold text-base text-slate-100 tracking-wide font-sans">VAULT</h1>
-            <span className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-mono font-medium">LIVING CLUSTER</span>
+            <h1 className="font-extrabold text-lg tracking-wider font-sans vault-gradient-text">
+              VAULT
+            </h1>
+            <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-cyan-500/10 text-cyan-300 border border-cyan-500/25 font-mono font-semibold tracking-wider">
+              LIVING CLUSTER
+            </span>
           </div>
-          <p className="text-[11px] text-slate-400 font-sans">Distributed Object-Storage System</p>
+          <p className="text-[11px] text-slate-400 font-sans tracking-tight">
+            Fault-Tolerant Distributed Object Storage
+          </p>
         </div>
       </div>
 
       {/* Metrics Center */}
-      <div className="hidden lg:flex items-center gap-8">
-        {/* Total Objects */}
+      <div className="hidden lg:flex items-center gap-7">
+        {/* Live Nodes */}
         <div className="flex items-center gap-2.5">
-          <div className="p-1.5 rounded-md bg-slate-800/60 text-slate-400">
-            <Database className="w-4 h-4 text-sky-400" />
+          <div className="p-1.5 rounded-lg bg-slate-800/40 border border-[var(--line)] text-slate-400">
+            <Server className="w-4 h-4 text-cyan-400" />
           </div>
           <div>
-            <div className="text-[11px] text-slate-400 uppercase tracking-wider font-medium">Total Objects</div>
-            <div className="text-sm font-semibold font-mono text-slate-100">{summary.total_objects || 0}</div>
+            <div className="text-[10px] text-slate-400 uppercase tracking-wider font-sans font-medium">Nodes Online</div>
+            <div className="text-sm font-semibold font-mono text-slate-100">
+              {onlineNodes} <span className="text-slate-500 text-xs font-normal">/ {totalNodes}</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Total Objects */}
+        <div className="flex items-center gap-2.5">
+          <div className="p-1.5 rounded-lg bg-slate-800/40 border border-[var(--line)] text-slate-400">
+            <Database className="w-4 h-4 text-cyan-400" />
+          </div>
+          <div>
+            <div className="text-[10px] text-slate-400 uppercase tracking-wider font-sans font-medium">Total Objects</div>
+            <div className="text-sm font-semibold font-mono text-slate-100">{totalObjects}</div>
           </div>
         </div>
 
         {/* Storage Used */}
         <div className="flex items-center gap-2.5">
-          <div className="p-1.5 rounded-md bg-slate-800/60 text-slate-400">
-            <HardDrive className="w-4 h-4 text-purple-400" />
+          <div className="p-1.5 rounded-lg bg-slate-800/40 border border-[var(--line)] text-slate-400">
+            <HardDrive className="w-4 h-4 text-violet-400" />
           </div>
           <div>
-            <div className="flex items-center gap-1.5 text-[11px] text-slate-400 uppercase tracking-wider font-medium">
+            <div className="flex items-center gap-1.5 text-[10px] text-slate-400 uppercase tracking-wider font-sans font-medium">
               <span>Cluster Storage</span>
               <span className="text-slate-500 font-mono">({storagePct}%)</span>
             </div>
@@ -68,24 +88,30 @@ export function TopBar({ nodes, summary, wsConnected, isPanelOpen, setIsPanelOpe
 
         {/* Target Replication Factor */}
         <div className="flex items-center gap-2.5">
-          <div className="p-1.5 rounded-md bg-slate-800/60 text-slate-400">
-            <Activity className="w-4 h-4 text-emerald-400" />
+          <div className="p-1.5 rounded-lg bg-slate-800/40 border border-[var(--line)] text-slate-400">
+            <Activity className="w-4 h-4 text-cyan-400" />
           </div>
           <div>
-            <div className="text-[11px] text-slate-400 uppercase tracking-wider font-medium">Replication Factor</div>
-            <div className="text-sm font-semibold font-mono text-emerald-400">3x <span className="text-slate-500 text-xs font-normal font-sans">Quorum</span></div>
+            <div className="text-[10px] text-slate-400 uppercase tracking-wider font-sans font-medium">Replication Factor</div>
+            <div className="text-sm font-semibold font-mono text-cyan-400">
+              3x <span className="text-slate-500 text-xs font-normal font-sans">Quorum</span>
+            </div>
           </div>
         </div>
 
-        {/* Healthy Replicas % */}
-        <div className="flex items-center gap-2.5">
-          <div className="p-1.5 rounded-md bg-slate-800/60 text-slate-400">
-            <ShieldCheck className={`w-4 h-4 ${healthPct === 100 ? 'text-emerald-400' : 'text-amber-400'}`} />
-          </div>
+        {/* Cluster Durability & Health with Circular Progress Ring */}
+        <div className="flex items-center gap-3 pl-2 border-l border-[var(--line)]">
+          <CircularProgress value={healthPct} size={36} color={healthColor} strokeWidth={3.5} />
           <div>
-            <div className="text-[11px] text-slate-400 uppercase tracking-wider font-medium">Cluster Health</div>
-            <div className={`text-sm font-semibold font-mono ${healthPct === 100 ? 'text-emerald-400' : 'text-amber-400'}`}>
-              {healthPct}% <span className="text-slate-500 text-xs font-normal font-sans">{summary.failed > 0 ? `(${summary.failed} Failed)` : 'Optimal'}</span>
+            <div className="text-[10px] text-slate-400 uppercase tracking-wider font-sans font-medium">Cluster Durability</div>
+            <div className="text-xs font-medium font-sans text-slate-300">
+              {summary.failed > 0 ? (
+                <span className="text-rose-400 font-mono font-semibold">{summary.failed} Node Outage</span>
+              ) : healthPct >= 100 ? (
+                <span className="text-emerald-400 font-mono font-semibold">100% Optimal</span>
+              ) : (
+                <span className="text-amber-400 font-mono font-semibold">Degraded Quorum</span>
+              )}
             </div>
           </div>
         </div>
@@ -93,13 +119,13 @@ export function TopBar({ nodes, summary, wsConnected, isPanelOpen, setIsPanelOpe
 
       {/* Right Actions */}
       <div className="flex items-center gap-3">
-        {/* WebSocket Status */}
-        <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-mono font-medium border ${
+        {/* WebSocket Status with Cyan Pulse-Dot Indicator */}
+        <div className={`flex items-center gap-2 px-3 py-1 rounded-full text-xs font-mono font-semibold border ${
           wsConnected
-            ? 'bg-emerald-950/40 text-emerald-300 border-emerald-500/30'
-            : 'bg-rose-950/40 text-rose-300 border-rose-500/30'
+            ? 'bg-cyan-500/[0.12] text-cyan-300 border-cyan-500/30'
+            : 'bg-rose-500/[0.12] text-rose-300 border-rose-500/30'
         }`}>
-          {wsConnected ? <Wifi className="w-3.5 h-3.5 text-emerald-400" /> : <WifiOff className="w-3.5 h-3.5 text-rose-400" />}
+          <span className={`w-2 h-2 rounded-full shrink-0 ${wsConnected ? 'bg-cyan-400 pulse-dot-cyan' : 'bg-rose-400 pulse-dot-bad'}`} />
           <span>{wsConnected ? 'LIVE FEED' : 'RECONNECTING'}</span>
         </div>
 
@@ -107,7 +133,7 @@ export function TopBar({ nodes, summary, wsConnected, isPanelOpen, setIsPanelOpe
         <button
           onClick={() => setIsPanelOpen(!isPanelOpen)}
           title={isPanelOpen ? "Expand Graph to Full-Width" : "Open Feed & Tables Panel"}
-          className="p-2 rounded-lg bg-slate-800/60 hover:bg-slate-700/60 border border-slate-700/50 text-slate-300 hover:text-white transition-colors"
+          className="p-2 rounded-xl bg-slate-800/40 hover:bg-slate-700/50 border border-[var(--line)] text-slate-300 hover:text-white transition-colors"
         >
           {isPanelOpen ? <PanelRightClose className="w-4 h-4" /> : <PanelRightOpen className="w-4 h-4" />}
         </button>
