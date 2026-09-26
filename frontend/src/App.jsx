@@ -6,6 +6,7 @@ import { UploadZone } from './components/UploadZone';
 import { ControlBar } from './components/ControlBar';
 import { ActivityFeed } from './components/ActivityFeed';
 import { ObjectsTable } from './components/ObjectsTable';
+import { MeshBackground } from './components/MeshBackground';
 import { wsService } from './services/websocket';
 import * as api from './services/api';
 
@@ -380,6 +381,7 @@ export default function App() {
         <div className="ambient-glow-cyan" />
         <div className="ambient-glow-violet" />
         <div className="ambient-grid" />
+        <MeshBackground opacity={0.22} />
       </div>
 
       {/* Top Status Bar */}
