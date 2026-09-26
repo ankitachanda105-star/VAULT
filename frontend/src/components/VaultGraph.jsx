@@ -2,6 +2,7 @@ import React, { useState, useMemo, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { formatBytes, formatTime } from '../utils/formatters';
 import { StatusPill } from './StatusPill';
+import { MeshBackground } from './MeshBackground';
 import { Radio, HardDrive, Cpu, Clock, Layers } from 'lucide-react';
 
 export function VaultGraph({ nodes, objects, activeParticles, flashingNodes, repairAuraNodeId }) {
@@ -140,6 +141,9 @@ export function VaultGraph({ nodes, objects, activeParticles, flashingNodes, rep
           </div>
         </div>
       </div>
+
+      {/* Ambient Decorative Mesh Layer behind the 5 real nodes */}
+      <MeshBackground opacity={0.35} />
 
       {/* SVG Canvas */}
       <svg
