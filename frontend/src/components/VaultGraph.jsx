@@ -2,7 +2,6 @@ import React, { useState, useMemo, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { formatBytes, formatTime } from '../utils/formatters';
 import { StatusPill } from './StatusPill';
-import { MeshBackground } from './MeshBackground';
 import { Radio, HardDrive, Cpu, Clock, Layers } from 'lucide-react';
 
 export function VaultGraph({ nodes, objects, activeParticles, flashingNodes, repairAuraNodeId }) {
@@ -10,10 +9,19 @@ export function VaultGraph({ nodes, objects, activeParticles, flashingNodes, rep
   const height = 580;
   const centerX = width / 2;
   const centerY = height / 2;
-  const radius = 205;
+  const radius = 200;
   const svgRef = useRef(null);
 
-  // Initial circular topology coordinates
+  // Staggered pulse timing configurations for the 5 real nodes
+  const pulseConfigs = [
+    { dur: 3.4, delay: 0.0 },
+    { dur: 4.1, delay: 0.8 },
+    { dur: 4.7, delay: 1.6 },
+    { dur: 3.7, delay: 2.4 },
+    { dur: 4.3, delay: 3.2 },
+  ];
+
+  // Stable organic circle positions for the 5 real nodes
   const [nodePositions, setNodePositions] = useState(() => {
     const posMap = {};
     const total = 5;
@@ -61,12 +69,14 @@ export function VaultGraph({ nodes, objects, activeParticles, flashingNodes, rep
     setDraggedNodeId(null);
   };
 
-  const links = useMemo(() => {
+  // Base Full Mesh: all 10 possible interconnect lines between the 5 nodes
+  const allMeshLinks = useMemo(() => {
     const result = [];
     for (let i = 1; i <= 5; i++) {
       for (let j = i + 1; j <= 5; j++) {
         if (nodePositions[i] && nodePositions[j]) {
           result.push({
+            id: `${i}-${j}`,
             sourceId: i,
             targetId: j,
             x1: nodePositions[i].x,
@@ -80,11 +90,61 @@ export function VaultGraph({ nodes, objects, activeParticles, flashingNodes, rep
     return result;
   }, [nodePositions]);
 
+  // Real Replica-Sharing Connections: determined from live objects state
+  const activeReplicaPairs = useMemo(() => {
+    const active = new Set();
+
+    // 1. Check if any objects have replicas list
+    objects.forEach((obj) => {
+      if (Array.isArray(obj.replicas) && obj.replicas.length > 1) {
+        const ids = obj.replicas
+          .map((r) => {
+            if (typeof r === 'number') return r;
+            const match = String(r).match(/\d+/);
+            return match ? parseInt(match[0], 10) : null;
+          })
+          .filter(Boolean);
+
+        for (let i = 0; i < ids.length; i++) {
+          for (let j = i + 1; j < ids.length; j++) {
+            const minId = Math.min(ids[i], ids[j]);
+            const maxId = Math.max(ids[i], ids[j]);
+            active.add(`${minId}-${maxId}`);
+          }
+        }
+      }
+    });
+
+    // 2. If existing objects don't specify explicit replica array, connect nodes with used_storage > 0
+    if (active.size === 0 && objects.length > 0) {
+      const storedNodes = nodes.filter((n) => (n.used_storage || 0) > 0).map((n) => n.id);
+      if (storedNodes.length >= 2) {
+        for (let i = 0; i < storedNodes.length; i++) {
+          for (let j = i + 1; j < storedNodes.length; j++) {
+            const minId = Math.min(storedNodes[i], storedNodes[j]);
+            const maxId = Math.max(storedNodes[i], storedNodes[j]);
+            active.add(`${minId}-${maxId}`);
+          }
+        }
+      } else {
+        // Fallback quorum (first 3 online nodes)
+        const onlineIds = nodes.filter((n) => n.status === 'ONLINE').map((n) => n.id).slice(0, 3);
+        for (let i = 0; i < onlineIds.length; i++) {
+          for (let j = i + 1; j < onlineIds.length; j++) {
+            active.add(`${Math.min(onlineIds[i], onlineIds[j])}-${Math.max(onlineIds[i], onlineIds[j])}`);
+          }
+        }
+      }
+    }
+
+    return active;
+  }, [objects, nodes]);
+
   const getStatusColor = (status, isFlashing) => {
     if (isFlashing) return '#ef4444'; // Red
     if (status === 'REPAIRING') return '#f59e0b'; // Amber
     if (status === 'PARTITIONED') return '#a78bfa'; // Violet
-    if (status === 'FAILED') return '#ef4444'; // Red
+    if (status === 'FAILED') return '#64748b'; // Muted Grey
     return '#10b981'; // Emerald
   };
 
@@ -103,7 +163,7 @@ export function VaultGraph({ nodes, objects, activeParticles, flashingNodes, rep
 
   return (
     <div
-      className="relative w-full h-full flex flex-col items-center justify-center overflow-hidden select-none"
+      className="relative w-full h-full flex flex-col items-center justify-center overflow-hidden select-none bg-[#0a0e14]"
       onMouseMove={handleMouseMove}
       onTouchMove={handleMouseMove}
       onMouseUp={handleMouseUp}
@@ -114,10 +174,10 @@ export function VaultGraph({ nodes, objects, activeParticles, flashingNodes, rep
         <div className="flex items-center gap-2">
           <Radio className="w-3.5 h-3.5 text-cyan-400" />
           <span className="text-[11px] font-sans font-semibold text-slate-300 uppercase tracking-wider">
-            Topology Mesh
+            Topology Mesh (5 Real Nodes)
           </span>
           <span className="text-[10px] font-mono text-slate-500 hidden sm:inline">
-            (Drag nodes to rearrange)
+            — Base mesh + Real replica quorum
           </span>
         </div>
 
@@ -125,25 +185,22 @@ export function VaultGraph({ nodes, objects, activeParticles, flashingNodes, rep
         <div className="flex items-center gap-3 px-3 py-1 rounded-full glass-panel-sub text-[10px] font-mono">
           <div className="flex items-center gap-1.5">
             <span className="w-2 h-2 rounded-full bg-emerald-400 pulse-dot-ok" />
-            <span className="text-slate-300">HEALTHY</span>
+            <span className="text-slate-300">ONLINE</span>
           </div>
           <div className="flex items-center gap-1.5">
             <span className="w-2 h-2 rounded-full bg-amber-400 pulse-dot-warn" />
-            <span className="text-slate-300">DEGRADED / REPAIR</span>
+            <span className="text-slate-300">REPAIRING</span>
           </div>
           <div className="flex items-center gap-1.5">
             <span className="w-2 h-2 rounded-full bg-violet-400 pulse-dot-violet" />
-            <span className="text-slate-300">PARTITION</span>
+            <span className="text-slate-300">PARTITIONED</span>
           </div>
           <div className="flex items-center gap-1.5">
-            <span className="w-2 h-2 rounded-full bg-rose-400 pulse-dot-bad" />
-            <span className="text-slate-300">OFFLINE</span>
+            <span className="w-2 h-2 rounded-full bg-slate-500" />
+            <span className="text-slate-400">FAILED</span>
           </div>
         </div>
       </div>
-
-      {/* Ambient Decorative Mesh Layer behind the 5 real nodes */}
-      <MeshBackground opacity={0.35} />
 
       {/* SVG Canvas */}
       <svg
@@ -152,37 +209,35 @@ export function VaultGraph({ nodes, objects, activeParticles, flashingNodes, rep
         className="w-full h-full max-w-[850px] max-h-[600px] z-10"
       >
         <defs>
-          <filter id="glow-cyan" x="-30%" y="-30%" width="160%" height="160%">
+          <filter id="glow-emerald" x="-30%" y="-30%" width="160%" height="160%">
             <feGaussianBlur stdDeviation="8" result="blur" />
             <feComposite in="SourceGraphic" in2="blur" operator="over" />
           </filter>
-          <filter id="glow-emerald" x="-30%" y="-30%" width="160%" height="160%">
-            <feGaussianBlur stdDeviation="6" result="blur" />
+          <filter id="glow-emerald-line" x="-30%" y="-30%" width="160%" height="160%">
+            <feGaussianBlur stdDeviation="4" result="blur" />
             <feComposite in="SourceGraphic" in2="blur" operator="over" />
           </filter>
           <filter id="glow-amber" x="-30%" y="-30%" width="160%" height="160%">
-            <feGaussianBlur stdDeviation="8" result="blur" />
+            <feGaussianBlur stdDeviation="10" result="blur" />
             <feComposite in="SourceGraphic" in2="blur" operator="over" />
           </filter>
           <filter id="glow-red" x="-30%" y="-30%" width="160%" height="160%">
             <feGaussianBlur stdDeviation="8" result="blur" />
             <feComposite in="SourceGraphic" in2="blur" operator="over" />
           </filter>
-          <filter id="glow-violet" x="-30%" y="-30%" width="160%" height="160%">
-            <feGaussianBlur stdDeviation="8" result="blur" />
+          <filter id="glow-particle" x="-50%" y="-50%" width="200%" height="200%">
+            <feGaussianBlur stdDeviation="3.5" result="blur" />
             <feComposite in="SourceGraphic" in2="blur" operator="over" />
           </filter>
         </defs>
 
-        {/* Central Core Ingestion Hub */}
+        {/* Central Ingest Core Hub */}
         <g transform={`translate(${centerX}, ${centerY})`}>
-          <circle r="26" fill="#0c1118" stroke="#22d3ee" strokeWidth="1.5" opacity="0.8" />
-          <circle r="22" fill="#131a24" opacity="0.6" />
-          <circle r="6" fill="#22d3ee" opacity="0.9">
-            <animate attributeName="opacity" values="0.4;1;0.4" dur="2.5s" repeatCount="indefinite" />
-            <animate attributeName="r" values="5;7;5" dur="2.5s" repeatCount="indefinite" />
+          <circle r="24" fill="#0c1118" stroke="rgba(34, 211, 238, 0.4)" strokeWidth="1.2" opacity="0.75" />
+          <circle r="5" fill="#22d3ee" opacity="0.8">
+            <animate attributeName="opacity" values="0.3;0.9;0.3" dur="3s" repeatCount="indefinite" />
           </circle>
-          <text textAnchor="middle" dy="38" fill="#64748b" className="text-[10px] font-mono tracking-widest uppercase select-none">
+          <text textAnchor="middle" dy="36" fill="#64748b" className="text-[9px] font-mono tracking-widest uppercase select-none">
             Ingest Core
           </text>
         </g>
@@ -195,48 +250,101 @@ export function VaultGraph({ nodes, objects, activeParticles, flashingNodes, rep
             y1={centerY}
             x2={pos.x}
             y2={pos.y}
-            stroke="rgba(148, 163, 184, 0.15)"
-            strokeWidth="1"
+            stroke="rgba(148, 163, 184, 0.10)"
+            strokeWidth="0.8"
             strokeDasharray="4 4"
           />
         ))}
 
-        {/* Intersite Mesh Interconnect Topology Lines */}
-        {links.map((link) => {
+        {/* LAYER 1: BASE FULL MESH (All 10 interconnect lines, faint and static) */}
+        {allMeshLinks.map((link) => {
+          const sourceNode = nodes.find((n) => n.id === link.sourceId);
+          const targetNode = nodes.find((n) => n.id === link.targetId);
+          const isFailed = sourceNode?.status === 'FAILED' || targetNode?.status === 'FAILED';
+
+          return (
+            <line
+              key={`base-mesh-${link.id}`}
+              x1={link.x1}
+              y1={link.y1}
+              x2={link.x2}
+              y2={link.y2}
+              stroke={isFailed ? 'rgba(71, 85, 105, 0.10)' : 'rgba(148, 163, 184, 0.14)'}
+              strokeWidth={isFailed ? 0.8 : 1}
+              strokeDasharray={isFailed ? '3 3' : 'none'}
+            />
+          );
+        })}
+
+        {/* LAYER 2: BRIGHT REAL REPLICA CONNECTIONS (Drawn on top of base mesh) */}
+        {allMeshLinks.map((link) => {
+          const isReplicaPair = activeReplicaPairs.has(link.id);
+          if (!isReplicaPair) return null; // Only render real replica relationships here
+
           const sourceNode = nodes.find((n) => n.id === link.sourceId);
           const targetNode = nodes.find((n) => n.id === link.targetId);
           const isFailed = sourceNode?.status === 'FAILED' || targetNode?.status === 'FAILED';
           const isPartitioned = sourceNode?.status === 'PARTITIONED' || targetNode?.status === 'PARTITIONED';
           const isCorrupted = flashingNodes.includes(link.sourceId) || flashingNodes.includes(link.targetId);
+          const isRepairing =
+            sourceNode?.status === 'REPAIRING' ||
+            targetNode?.status === 'REPAIRING' ||
+            repairAuraNodeId === link.sourceId ||
+            repairAuraNodeId === link.targetId;
 
-          let strokeColor = 'rgba(34, 211, 238, 0.35)'; // Cyan default mesh
-          if (isCorrupted) strokeColor = '#ef4444';
-          else if (isFailed) strokeColor = 'rgba(239, 68, 68, 0.2)';
-          else if (isPartitioned) strokeColor = 'rgba(167, 139, 250, 0.4)';
+          let strokeColor = '#10b981'; // Emerald glow for healthy active replica links
+          let strokeWidth = 2.4;
+          let strokeDasharray = 'none';
+          let strokeOpacity = 0.85;
+
+          if (isCorrupted) {
+            strokeColor = '#ef4444';
+            strokeWidth = 3.2;
+            strokeOpacity = 1;
+          } else if (isFailed) {
+            strokeColor = 'rgba(239, 68, 68, 0.4)';
+            strokeWidth = 1.2;
+            strokeDasharray = '4 4';
+            strokeOpacity = 0.45;
+          } else if (isPartitioned) {
+            strokeColor = '#a78bfa';
+            strokeWidth = 2;
+            strokeDasharray = '5 3';
+            strokeOpacity = 0.7;
+          } else if (isRepairing) {
+            strokeColor = '#f59e0b';
+            strokeWidth = 2.6;
+            strokeOpacity = 0.95;
+          }
 
           return (
             <motion.line
-              key={`link-${link.sourceId}-${link.targetId}`}
+              key={`replica-line-${link.id}`}
               x1={link.x1}
               y1={link.y1}
               x2={link.x2}
               y2={link.y2}
               stroke={strokeColor}
-              strokeWidth={isCorrupted ? 2.5 : isFailed ? 1 : isPartitioned ? 1.5 : 1.2}
-              strokeDasharray={isFailed ? '4 4' : isPartitioned ? '3 3' : 'none'}
-              strokeOpacity={isCorrupted ? 0.9 : isFailed ? 0.25 : 0.6}
+              strokeWidth={strokeWidth}
+              strokeDasharray={strokeDasharray}
+              strokeOpacity={strokeOpacity}
+              filter={isRepairing ? 'url(#glow-amber)' : isCorrupted ? 'url(#glow-red)' : 'url(#glow-emerald-line)'}
+              animate={{
+                strokeOpacity: isCorrupted ? [0.3, 1, 0.3] : undefined,
+              }}
+              transition={{ duration: 0.5, repeat: isCorrupted ? 4 : 0 }}
             />
           );
         })}
 
-        {/* Traveling Particles */}
+        {/* Traveling Particles (Upload / Repair / Rebalance) */}
         <AnimatePresence>
           {activeParticles.map((particle) => (
             <motion.circle
               key={particle.id}
               r={particle.size || 5}
               fill={particle.color || '#22d3ee'}
-              filter="url(#glow-cyan)"
+              filter="url(#glow-particle)"
               initial={{ cx: particle.startX, cy: particle.startY, opacity: 0.9 }}
               animate={{ cx: particle.targetX, cy: particle.targetY, opacity: 1 }}
               exit={{ opacity: 0 }}
@@ -245,22 +353,27 @@ export function VaultGraph({ nodes, objects, activeParticles, flashingNodes, rep
           ))}
         </AnimatePresence>
 
-        {/* Storage Node Groups */}
-        {nodes.map((node) => {
+        {/* THE 5 REAL STORAGE NODES */}
+        {nodes.map((node, idx) => {
           const pos = nodePositions[node.id] || { x: centerX, y: centerY };
           const isFlashing = flashingNodes.includes(node.id);
           const isRepairing = node.status === 'REPAIRING' || repairAuraNodeId === node.id;
           const isFailed = node.status === 'FAILED';
           const isPartitioned = node.status === 'PARTITIONED';
+          const isOnline = node.status === 'ONLINE' && !isFlashing && !isRepairing;
           const statusColor = getStatusColor(node.status, isFlashing);
 
-          const baseRadius = 38;
+          // Node size reflects used_storage
+          const baseRadius = 36;
           const storageScale = Math.min(14, (node.used_storage || 0) / 100);
           const nodeRadius = baseRadius + storageScale;
 
+          // Staggered ambient pulse configuration
+          const pulse = pulseConfigs[(node.id - 1) % 5] || { dur: 3.5, delay: 0 };
+
           return (
             <g
-              key={`node-${node.id}`}
+              key={`real-node-${node.id}`}
               transform={`translate(${pos.x}, ${pos.y})`}
               className="cursor-grab active:cursor-grabbing transition-transform"
               onMouseDown={(e) => handleMouseDown(node.id, e)}
@@ -268,32 +381,60 @@ export function VaultGraph({ nodes, objects, activeParticles, flashingNodes, rep
               onMouseEnter={() => setHoveredNodeId(node.id)}
               onMouseLeave={() => setHoveredNodeId((curr) => (curr === node.id ? null : curr))}
             >
-              {/* Outer Animated Pulse Ring */}
-              <circle
-                r={nodeRadius + 7}
-                fill="none"
-                stroke={statusColor}
-                strokeWidth="1.5"
-                opacity={isFailed ? 0.2 : 0.6}
-              >
-                <animate
-                  attributeName="r"
-                  values={`${nodeRadius + 5};${nodeRadius + 14};${nodeRadius + 5}`}
-                  dur={isRepairing ? '1.2s' : '2.5s'}
-                  repeatCount="indefinite"
-                />
-                <animate
-                  attributeName="opacity"
-                  values={isFailed ? '0.1;0.3;0.1' : '0.6;0.1;0.6'}
-                  dur={isRepairing ? '1.2s' : '2.5s'}
-                  repeatCount="indefinite"
-                />
-              </circle>
+              {/* Slow, gentle ambient pulse ring for ONLINE nodes at rest (staggered, not synced) */}
+              {isOnline && (
+                <circle
+                  r={nodeRadius + 6}
+                  fill="none"
+                  stroke="#10b981"
+                  strokeWidth="1.2"
+                  opacity="0.4"
+                >
+                  <animate
+                    attributeName="r"
+                    values={`${nodeRadius + 4};${nodeRadius + 13};${nodeRadius + 4}`}
+                    dur={`${pulse.dur}s`}
+                    begin={`${pulse.delay}s`}
+                    repeatCount="indefinite"
+                  />
+                  <animate
+                    attributeName="opacity"
+                    values="0.45;0.08;0.45"
+                    dur={`${pulse.dur}s`}
+                    begin={`${pulse.delay}s`}
+                    repeatCount="indefinite"
+                  />
+                </circle>
+              )}
 
-              {/* Outer Orbiting Ring When Partitioned */}
+              {/* Repairing pulsing aura */}
+              {isRepairing && (
+                <circle
+                  r={nodeRadius + 10}
+                  fill="none"
+                  stroke="#f59e0b"
+                  strokeWidth="2"
+                  opacity="0.7"
+                >
+                  <animate
+                    attributeName="r"
+                    values={`${nodeRadius + 6};${nodeRadius + 20};${nodeRadius + 6}`}
+                    dur="1.3s"
+                    repeatCount="indefinite"
+                  />
+                  <animate
+                    attributeName="opacity"
+                    values="0.8;0.15;0.8"
+                    dur="1.3s"
+                    repeatCount="indefinite"
+                  />
+                </circle>
+              )}
+
+              {/* Partitioned dashed outline */}
               {isPartitioned && (
                 <circle
-                  r={nodeRadius + 12}
+                  r={nodeRadius + 8}
                   fill="none"
                   stroke="#a78bfa"
                   strokeWidth="1.5"
@@ -304,20 +445,21 @@ export function VaultGraph({ nodes, objects, activeParticles, flashingNodes, rep
                     type="rotate"
                     from="0"
                     to="360"
-                    dur="10s"
+                    dur="8s"
                     repeatCount="indefinite"
                   />
                 </circle>
               )}
 
-              {/* Node Body with Solid Dark Fill and Colored Stroke */}
+              {/* Node Solid Body with Colored Stroke */}
               <circle
                 r={nodeRadius}
-                fill="#0c1118"
+                fill={isFailed ? '#1e293b' : '#0c1118'}
                 stroke={statusColor}
                 strokeWidth={isPartitioned ? 2 : 2.5}
                 strokeDasharray={isPartitioned ? '5 3' : 'none'}
-                filter={isRepairing ? 'url(#glow-amber)' : isFlashing ? 'url(#glow-red)' : undefined}
+                opacity={isFailed ? 0.6 : 1}
+                filter={isRepairing ? 'url(#glow-amber)' : isFlashing ? 'url(#glow-red)' : isOnline ? 'url(#glow-emerald)' : undefined}
               />
 
               {/* Node Name */}
